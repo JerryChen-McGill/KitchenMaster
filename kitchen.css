@@ -422,3 +422,72 @@
 .restaurant-ranking:hover { background: linear-gradient(#fff4c9, #f5d984); transform: translateY(-2px); }
 .restaurant-ranking svg { color: #bd8a2e; }
 @media (prefers-reduced-motion: reduce) { .scene-hero, .scene-food-image { animation: none; } }
+
+/* Reference inspired restaurant landing screen */
+.restaurant-home {
+  min-height: 100dvh;
+  padding: clamp(20px, 4vh, 42px) clamp(18px, 4vw, 56px);
+  background: radial-gradient(ellipse at 50% 34%, #fffaf0 0%, #fff4e3 58%, #f5dfc9 100%);
+}
+.restaurant-home::before { top: -240px; left: -140px; width: 470px; height: 470px; border: 0; border-radius: 0; background: radial-gradient(ellipse at center, #edbd8b40 0 34%, transparent 35%); box-shadow: none; }
+.restaurant-home::after { right: -130px; bottom: -250px; width: 470px; height: 470px; border: 0; border-radius: 0; background: radial-gradient(ellipse at center, #edbd8b40 0 34%, transparent 35%); box-shadow: none; }
+.restaurant-home-inner { max-width: 1120px; }
+.restaurant-home-heading { margin-bottom: clamp(27px, 5vh, 48px); }
+.home-brand-mark { display: grid; width: 76px; height: 68px; place-items: center; margin: 0 auto -2px; color: #572711; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.home-brand-mark svg { width: 62px; height: 62px; stroke-width: 2.5; }
+.home-title { color: #542b18; font-family: inherit; font-size: clamp(43px, 6.6vw, 76px); font-weight: 1000; letter-spacing: -.055em; line-height: .98; text-shadow: 0 2px 0 #fff9eb; }
+.home-title span { color: inherit; }
+.home-title-swoosh { display: block; width: min(390px, 48vw); height: 16px; margin: 14px auto 0; border-radius: 50%; border-top: 11px solid #e34c37; transform: rotate(-2deg); }
+.restaurant-home-grid { gap: clamp(18px, 4vw, 42px); }
+.restaurant-choice, .restaurant-choice-chinese, .restaurant-choice-chinese:hover, .restaurant-choice:hover {
+  padding: 8px;
+  border: 0;
+  border-radius: 32px;
+  background: #fffaf2;
+  box-shadow: 0 10px 0 #eacfb2, 0 18px 28px #744c3026;
+  transform: none;
+}
+.restaurant-choice:hover { box-shadow: 0 12px 0 #eacfb2, 0 22px 34px #744c3030; }
+.restaurant-choice-main { display: flex; flex-direction: column; align-items: center; width: 100%; min-height: 0; padding: 0 0 16px; overflow: hidden; border-radius: 25px; background: linear-gradient(160deg, #ffb54d, #ffe0a1 62%, #fff0d8); }
+.restaurant-choice-chinese .restaurant-choice-main { background: linear-gradient(160deg, #f16b53, #ffab8d 62%, #ffe0cd); }
+.restaurant-choice-main:hover .restaurant-play { transform: scale(1.055); filter: brightness(1.04); }
+.restaurant-choice-main:active .restaurant-play { transform: scale(.96); }
+.restaurant-choice-scene { display: grid; position: relative; width: 100%; height: clamp(220px, 27vw, 305px); min-height: 0; place-items: center; overflow: hidden; border: 0; border-radius: 25px 25px 0 0; background: transparent; isolation: isolate; }
+.restaurant-choice-scene::before { inset: 15px; border: 0; border-radius: 24px; background: linear-gradient(135deg, #fff8dd50, transparent 40%); }
+.restaurant-choice-western .restaurant-choice-scene::after, .restaurant-choice-chinese .restaurant-choice-scene::after { content: ''; position: absolute; inset: 12px; z-index: -1; border: 3px solid #fff4db55; border-radius: 21px; }
+.restaurant-choice-chinese .restaurant-choice-scene::after { border-color: #fff0e166; }
+.scene-sun { top: 40px; width: 200px; height: 200px; background: #fff5d64d; box-shadow: none; }
+.restaurant-choice-chinese .scene-sun { background: #fff1e34d; box-shadow: none; }
+.scene-food-halo { position: relative; z-index: 2; display: grid; width: min(82%, 350px); height: 88%; place-items: center; border-radius: 50%; background: radial-gradient(ellipse, #fff6da72 0 46%, transparent 47%); }
+.restaurant-food-art { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 12px 4px #70432235); }
+.restaurant-choice-name { display: block; position: relative; z-index: 2; padding: 0; color: #572a16; background: none; font-size: clamp(30px, 4vw, 48px); font-weight: 1000; letter-spacing: .12em; line-height: 1.15; text-shadow: 0 2px #fff5dc; }
+.restaurant-choice-chinese .restaurant-choice-name { color: #74291e; }
+.restaurant-play { display: grid; width: 138px; height: 56px; place-items: center; margin-top: 14px; color: #fffaf0; border: 3px solid #fffaf0; border-radius: 999px; background: linear-gradient(#ffad30, #f28a12); box-shadow: inset 0 3px #ffffff5c, 0 5px 0 #d8760e, 0 8px 12px #9351182b; transition: transform .16s ease, filter .16s ease; }
+.restaurant-choice-chinese .restaurant-play { background: linear-gradient(#f45d40, #df402d); box-shadow: inset 0 3px #ffffff5c, 0 5px 0 #bd3326, 0 8px 12px #802c202b; }
+.restaurant-play svg { width: 27px; height: 27px; margin-left: 4px; stroke-width: 1.5; }
+.restaurant-choice-footer { display: flex; min-height: 57px; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px 1px; border: 0; background: transparent; }
+.restaurant-record { min-width: 0; color: #704b34; font-size: clamp(11px, 1.15vw, 14px); font-weight: 800; white-space: nowrap; }
+.restaurant-record span { display: block; }
+.restaurant-ranking { flex: none; padding: 8px 11px; color: #714d27; border: 1px solid #d4a751; border-radius: 999px; background: linear-gradient(#fff3c5, #f4d77f); box-shadow: inset 0 2px #fff9e1, 0 3px 0 #c69d4c; font-size: 12px; }
+.restaurant-ranking:hover { background: linear-gradient(#fff9dd, #f5dc91); transform: translateY(-1px); }
+.restaurant-ranking svg { width: 14px; height: 14px; color: #bd8a2e; }
+@media (max-width: 700px) {
+  .restaurant-home { align-items: flex-start; padding-top: 22px; }
+  .restaurant-home-inner { max-width: 480px; margin: auto; }
+  .restaurant-home-heading { margin-bottom: 22px; }
+  .home-brand-mark { width: 57px; height: 49px; }
+  .home-brand-mark svg { width: 48px; height: 48px; }
+  .home-title-swoosh { width: 225px; height: 10px; margin-top: 10px; border-top-width: 8px; }
+  .restaurant-home-grid { grid-template-columns: 1fr; gap: 18px; }
+  .restaurant-choice-scene { height: 230px; }
+  .scene-food-halo { width: min(76%, 300px); }
+  .restaurant-choice-name { font-size: 35px; }
+  .restaurant-play { width: 122px; height: 48px; margin-top: 10px; }
+  .restaurant-choice-footer { min-height: 50px; padding: 7px 12px 0; }
+}
+@media (max-width: 390px) {
+  .restaurant-choice-scene { height: 205px; }
+  .restaurant-choice-footer { padding-inline: 5px; }
+  .restaurant-record { font-size: 10px; }
+  .restaurant-ranking { gap: 5px; padding: 7px 9px; }
+}
