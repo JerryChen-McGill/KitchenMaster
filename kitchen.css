@@ -390,27 +390,30 @@
 .restaurant-home-grid { gap: 22px; }
 .restaurant-choice {
   padding: 7px;
-  border: 3px solid #9c674b;
-  border-radius: 22px;
-  background: #e5b67d;
-  box-shadow: inset 0 0 0 3px #f5d4a5, 0 5px 0 #86533b, 0 10px 15px #65402f2b;
+  border: 4px solid #fff;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #ffbd78, #ff8f9c);
+  box-shadow: 0 8px 0 #df7180, 0 14px 24px #71424726;
   transition: transform .18s ease, box-shadow .18s ease;
 }
-.restaurant-choice:hover { transform: translateY(-4px) rotate(-.4deg); box-shadow: inset 0 0 0 3px #f5d4a5, 0 8px 0 #86533b, 0 16px 18px #65402f30; }
-.restaurant-choice-chinese:hover { transform: translateY(-4px) rotate(.4deg); }
-.restaurant-choice-western, .restaurant-choice-chinese { color: #65402f; background: #e5b67d; }
+.restaurant-choice:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 10px 0 #df7180, 0 18px 28px #71424730; }
+.restaurant-choice-chinese, .restaurant-choice-chinese:hover { background: linear-gradient(145deg, #72d8c1, #55b9d8); box-shadow: 0 8px 0 #3996b5, 0 14px 24px #34576526; }
+.restaurant-choice-chinese:hover { box-shadow: 0 10px 0 #3996b5, 0 18px 28px #34576530; }
+.restaurant-choice-western { color: #65402f; }
 .restaurant-choice-main { border-radius: 14px 14px 8px 8px; overflow: hidden; }
-.restaurant-choice-scene { border-radius: 12px 12px 5px 5px; border: 3px solid #9c674b; }
-.restaurant-choice-western .restaurant-choice-scene { background-color: #f8d9a7; background-image: radial-gradient(#fff6dfaa 2px, transparent 2.5px), linear-gradient(145deg, #f6dfb8, #e8bd82); background-size: 22px 22px, cover; }
-.restaurant-choice-chinese .restaurant-choice-scene { background-color: #f3c9a0; background-image: radial-gradient(#fff2d6a8 2px, transparent 2.5px), linear-gradient(145deg, #f6d8b1, #e5ae79); background-size: 22px 22px, cover; }
-.restaurant-choice-scene::before { inset: 8px; border: 2px dashed #9c674b66; border-radius: 8px; }
-.scene-sun { top: 20px; width: 150px; height: 150px; background: #fff2d8a8; box-shadow: 0 0 0 8px #fff2d838; }
-.restaurant-choice-chinese .scene-sun { background: #fff0d4a8; }
-.scene-hero { border: 5px solid #fff9e9; background: radial-gradient(circle at 40% 30%, #fffdf2, #f3dfb6); box-shadow: 0 7px 0 #9b6240, 0 11px 16px #704a2a35, inset 0 0 0 3px #d5a86c; animation: home-food-bob 3s ease-in-out infinite; }
-.western-hero { border: 0; background: none; box-shadow: none; filter: drop-shadow(0 7px 0 #9b6240) drop-shadow(0 12px 8px #704a2a45); }
-.scene-food-image { width: min(78%, 275px); height: 82%; filter: drop-shadow(0 7px 0 #9b6240) drop-shadow(0 12px 8px #704a2a45); animation: home-food-bob 3s ease-in-out infinite; }
-.scene-table { bottom: 20px; width: 52%; height: 15px; background: #ad7659; box-shadow: 0 5px 0 #89553d; }
-.restaurant-choice-name { padding: 34px 17px 12px; color: #65402f; background: linear-gradient(transparent, #fff1d9ed); font-size: clamp(26px, 3vw, 34px); letter-spacing: .1em; text-shadow: 0 2px #fff9e9; }
+.restaurant-choice-scene { border-radius: 17px 17px 10px 10px; border: 0; }
+.restaurant-choice-western .restaurant-choice-scene { background-color: #ffda91; background-image: radial-gradient(#fff9dcbb 3px, transparent 3.5px), linear-gradient(145deg, #ffe9a8, #ffbd78); background-size: 26px 26px, cover; }
+.restaurant-choice-chinese .restaurant-choice-scene { background-color: #a8efdd; background-image: radial-gradient(#f1fff4bb 3px, transparent 3.5px), linear-gradient(145deg, #c7f3ce, #78d6cd); background-size: 26px 26px, cover; }
+.restaurant-choice-scene::before { inset: 9px; border: 3px solid #ffffff8c; border-radius: 12px; }
+.scene-sun { top: 20px; width: 150px; height: 150px; background: #fff7ce8f; box-shadow: 0 0 0 9px #fff7ce35; }
+.restaurant-choice-chinese .scene-sun { background: #f1fff48f; box-shadow: 0 0 0 9px #f1fff435; }
+.scene-hero { width: 168px; height: 168px; border: 6px solid #fff; background: radial-gradient(circle at 40% 30%, #fffdf2, #f8d7a2); box-shadow: 0 8px 0 #d68a53, 0 12px 16px #68442b32, inset 0 0 0 3px #ffefc4; font-size: 122px; animation: none; filter: drop-shadow(0 2px 0 #ffffff5c); }
+.western-hero, .chinese-hero { border: 6px solid #fff; background: radial-gradient(circle at 40% 30%, #fffdf2, #f8d7a2); box-shadow: 0 8px 0 #d68a53, 0 12px 16px #68442b32, inset 0 0 0 3px #ffefc4; font-size: 122px; filter: drop-shadow(0 2px 0 #ffffff5c); }
+.restaurant-choice-chinese .scene-hero, .restaurant-choice-chinese .chinese-hero { background: radial-gradient(circle at 40% 30%, #fffefa, #daf4df); box-shadow: 0 8px 0 #50aa9f, 0 12px 16px #356e6632, inset 0 0 0 3px #f0fff0; }
+.scene-food-image { width: min(78%, 275px); height: 82%; filter: drop-shadow(0 7px 0 #9b6240) drop-shadow(0 12px 8px #704a2a45); animation: none; }
+.scene-table { bottom: 20px; width: 52%; height: 15px; background: #bd8058; box-shadow: 0 5px 0 #a06044; }
+.restaurant-choice-name { padding: 34px 17px 12px; color: #65402f; background: linear-gradient(transparent, #fff7e6ed); font-size: clamp(26px, 3vw, 34px); letter-spacing: .1em; text-shadow: 0 2px #fff9e9; }
+.restaurant-choice-chinese .restaurant-choice-name { color: #28584f; }
 .restaurant-choice-footer { min-height: 68px; padding: 10px 12px 3px; border-top: 0; background: transparent; }
 .restaurant-record > svg { color: #6f9859; }
 .restaurant-record small { color: #805d47; }
@@ -418,5 +421,4 @@
 .restaurant-ranking { border: 2px solid #9b773c; color: #6f4c20; background: linear-gradient(#ffedaf, #f4ce73); box-shadow: inset 0 2px #fff9dc, 0 3px 0 #b58a43; }
 .restaurant-ranking:hover { background: linear-gradient(#fff4c9, #f5d984); transform: translateY(-2px); }
 .restaurant-ranking svg { color: #bd8a2e; }
-@keyframes home-food-bob { 0%, 100% { transform: translateY(-5px) rotate(-1deg); } 50% { transform: translateY(-11px) rotate(1deg); } }
 @media (prefers-reduced-motion: reduce) { .scene-hero, .scene-food-image { animation: none; } }

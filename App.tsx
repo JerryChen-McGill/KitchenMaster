@@ -664,7 +664,7 @@ const App: React.FC = () => {
                     onClick={() => { setRestaurantId(option.id); setShowHomepage(false); startGame(option.id); }}>
                     <span className="restaurant-choice-scene" aria-hidden="true">
                       <span className="scene-sun" />
-                      {isWestern ? <span className="scene-hero western-hero">🍔</span> : <img className="scene-food-image" src="/assets/mapo-tofu.png" alt="" />}
+                      <span className={`scene-hero ${isWestern ? 'western-hero' : 'chinese-hero'}`}>{isWestern ? '🍔' : '🥢'}</span>
                       <span className="scene-table" />
                       <strong className="restaurant-choice-name">{option.name}</strong>
                     </span>
