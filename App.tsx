@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CookButton, CookwareArtwork, DeliveryClock, DishArtwork, IngredientArtwork, RecipeCard, StockShelf } from './KitchenUI';
 import './kitchen.css';
 import { 
-  ShoppingCart, Flame, Clock, DollarSign, Package, ChefHat, Play,
+  ShoppingCart, Flame, Clock, DollarSign, Package, ChefHat,
   RotateCcw, AlertCircle, Heart, TrendingUp, TrendingDown, 
   Truck, Star, Volume2, VolumeX, XCircle, Trash2, Skull, Trophy, User, ArrowDownWideNarrow, Check, Utensils
 } from 'lucide-react';
@@ -63,44 +63,6 @@ const saveHighScore = (restaurantId: RestaurantId, score: number) => {
   }
   return false;
 };
-
-const WesternDishIllustration = () => (
-  <svg className="restaurant-food-art" viewBox="0 0 320 230" role="img" aria-label="汉堡和薯条插画">
-    <ellipse cx="160" cy="188" rx="126" ry="29" fill="#d67b35" opacity=".22" />
-    <ellipse cx="160" cy="168" rx="128" ry="40" fill="#fff9e9" stroke="#e9a45b" strokeWidth="7" />
-    <ellipse cx="160" cy="166" rx="99" ry="25" fill="#f5d59a" />
-    <g transform="rotate(10 246 116)" stroke="#fff5d5" strokeWidth="5" strokeLinejoin="round">
-      <path d="m226 99 17-63q2-8 10-5t6 11l-12 65" fill="#ffcf42" />
-      <path d="m244 111 31-67q4-8 11-4t3 12l-27 67" fill="#ffb72f" />
-      <path d="m258 119 42-54q5-7 11-2t0 12l-37 53" fill="#ffd34b" />
-    </g>
-    <g stroke="#fff7df" strokeWidth="5" strokeLinejoin="round">
-      <path d="M67 121q0-13 14-13h148q14 0 14 13v12H67z" fill="#874323" />
-      <path d="m70 114 39-20 43 13 35-18 52 24-17 16H83z" fill="#f7cf3d" />
-      <path d="M67 103q20-20 44-8 17-19 37-5 25-18 44 1 22-11 47 12l-13 14H80z" fill="#62aa49" />
-      <path d="M72 94q4-13 17-13h132q13 0 18 13l-5 11H76z" fill="#e94d36" />
-      <path d="M74 82q3-54 86-54t84 54q-3 17-23 18H96q-19-1-22-18" fill="#f4a72e" />
-      <path d="M74 82q3-54 86-54t84 54q-24 18-83 18T74 82" fill="#f8b844" />
-    </g>
-    <g fill="#fff1c8"><ellipse cx="122" cy="54" rx="5" ry="3" transform="rotate(-35 122 54)"/><ellipse cx="151" cy="42" rx="5" ry="3" transform="rotate(24 151 42)"/><ellipse cx="183" cy="48" rx="5" ry="3" transform="rotate(-27 183 48)"/><ellipse cx="210" cy="64" rx="5" ry="3" transform="rotate(24 210 64)"/><ellipse cx="99" cy="70" rx="5" ry="3" transform="rotate(-18 99 70)"/></g>
-  </svg>
-);
-
-const ChineseDishIllustration = () => (
-  <svg className="restaurant-food-art" viewBox="0 0 320 230" role="img" aria-label="麻婆豆腐和筷子插画">
-    <path d="M115 62 245 103" stroke="#9b3c20" strokeWidth="9" strokeLinecap="round" />
-    <path d="M108 75 238 116" stroke="#c55a2e" strokeWidth="9" strokeLinecap="round" />
-    <path d="M82 116q78-63 156 0l-12 52q-12 35-66 35t-66-35z" fill="#fff8e7" stroke="#df6841" strokeWidth="9" />
-    <path d="M86 119q74-52 148 0-7 31-74 31t-74-31" fill="#a83722" />
-    <ellipse cx="160" cy="117" rx="75" ry="30" fill="#d95e2f" />
-    <g fill="#a13b21"><ellipse cx="119" cy="111" rx="11" ry="8"/><ellipse cx="146" cy="101" rx="12" ry="8"/><ellipse cx="181" cy="110" rx="13" ry="8"/><ellipse cx="205" cy="119" rx="11" ry="7"/><ellipse cx="157" cy="123" rx="12" ry="8"/><ellipse cx="128" cy="127" rx="9" ry="6"/><ellipse cx="190" cy="97" rx="9" ry="6"/></g>
-    <g stroke="#fff0bf" strokeWidth="3" strokeLinejoin="round">
-      <path d="m127 91 17-8 12 8-2 15-16 5-12-7z" fill="#ffd66a"/><path d="m171 91 17-8 12 8-2 15-16 5-12-7z" fill="#ffc94d"/><path d="m148 112 17-8 12 8-2 15-16 5-12-7z" fill="#ffe17a"/><path d="m195 116 15-7 10 7-2 12-14 4-10-6z" fill="#ffd66a"/>
-    </g>
-    <path d="M97 155q63 34 126 0l-4 16q-10 27-59 27t-59-27z" fill="#f9e9c8" opacity=".9" />
-    <path d="M148 62q-12-15 0-30t0-24M176 61q-12-15 0-30t0-24" fill="none" stroke="#fff8e7" strokeWidth="7" strokeLinecap="round" opacity=".85" />
-  </svg>
-);
 
 // 创建灶台数组 - 初始只有前INITIAL_STOVES个灶台已安装
 const createStoves = (restaurant: RestaurantConfig): Stove[] => {
@@ -702,10 +664,9 @@ const App: React.FC = () => {
                     onClick={() => { setRestaurantId(option.id); setShowHomepage(false); startGame(option.id); }}>
                     <span className="restaurant-choice-scene">
                       <span className="scene-sun" />
-                      <span className="scene-food-halo">{isWestern ? <WesternDishIllustration /> : <ChineseDishIllustration />}</span>
+                      <img className="restaurant-food-art" src={isWestern ? '/restaurants/western-dish-2d.png' : '/restaurants/chinese-dish-2d.png'} alt={isWestern ? '汉堡和薯条卡通插画' : '麻婆豆腐和筷子卡通插画'} />
                     </span>
                     <strong className="restaurant-choice-name">{option.name}</strong>
-                    <span className="restaurant-play" aria-hidden="true"><Play fill="currentColor" /></span>
                   </button>
                   <div className="restaurant-choice-footer">
                     <div className="restaurant-record">
