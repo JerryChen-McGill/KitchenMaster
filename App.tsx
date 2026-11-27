@@ -11,6 +11,9 @@ import { getRecipeProfit } from './constants';
 import { IngredientId, GameState, Recipe, Order, Stove, PendingDelivery, CustomerType } from './types';
 import { createInitialCookwareInventory, createInitialInventory, RESTAURANTS, RestaurantId, RestaurantConfig } from './restaurants';
 
+const westernDishImage = new URL('./assets/western-dish-2d.png', import.meta.url).href;
+const chineseDishImage = new URL('./assets/chinese-dish-2d.png', import.meta.url).href;
+
 // 排行榜相关函数
 interface LeaderboardEntry {
   name: string;
@@ -664,7 +667,7 @@ const App: React.FC = () => {
                     onClick={() => { setRestaurantId(option.id); setShowHomepage(false); startGame(option.id); }}>
                     <span className="restaurant-choice-scene">
                       <span className="scene-sun" />
-                      <img className="restaurant-food-art" src={isWestern ? '/restaurants/western-dish-2d.png' : '/restaurants/chinese-dish-2d.png'} alt={isWestern ? '汉堡和薯条卡通插画' : '麻婆豆腐和筷子卡通插画'} />
+                      <img className="restaurant-food-art" src={isWestern ? westernDishImage : chineseDishImage} alt={isWestern ? '汉堡和薯条卡通插画' : '麻婆豆腐和筷子卡通插画'} />
                     </span>
                     <strong className="restaurant-choice-name">{option.name}</strong>
                   </button>
