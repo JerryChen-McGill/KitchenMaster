@@ -246,6 +246,20 @@
 .order-ticket > div:last-child { background: #ad744b; height: 8px; margin-top: 4px; border: 1px solid #9f6d45; }
 .order-ticket.border-red-600 { border-color: #c45138; }
 .game-paused .clock-hand, .game-paused .clock-progress { animation-play-state: paused; }
+.tutorial-layer { position: fixed; inset: 0; z-index: 800; }
+.tutorial-shade { position: fixed; background: rgba(20, 18, 16, .68); pointer-events: auto; }
+.tutorial-focus { position: fixed; border: 3px solid #fbbf24; border-radius: 12px; box-shadow: 0 0 0 2px rgba(255,255,255,.9); pointer-events: none; }
+.tutorial-bubble { position: fixed; z-index: 802; padding: 17px 18px 15px; border: 3px solid #f59e0b; border-radius: 16px; background: #fffdf7; color: #292524; box-shadow: 0 16px 40px rgba(0,0,0,.28); }
+.tutorial-bubble::before { content: ''; position: absolute; left: calc(50% - 11px); border: 11px solid transparent; }
+.tutorial-bubble.arrow-top::before { bottom: 100%; border-bottom-color: #f59e0b; }
+.tutorial-bubble.arrow-bottom::before { top: 100%; border-top-color: #f59e0b; }
+.tutorial-progress { margin-bottom: 5px; color: #b45309; font-size: 11px; font-weight: 900; letter-spacing: .04em; }
+.tutorial-bubble h2 { margin: 0; font-size: 19px; font-weight: 900; }
+.tutorial-bubble p { margin: 7px 0 14px; font-size: 14px; font-weight: 650; line-height: 1.5; }
+.tutorial-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tutorial-actions button { border: 0; border-radius: 9px; padding: 8px 13px; font-size: 13px; font-weight: 900; cursor: pointer; }
+.tutorial-skip { background: #f5f5f4; color: #57534e; }
+.tutorial-next { background: #ea580c; color: white; }
 .game-paused main button { filter: grayscale(.65); }
 @media (min-width: 1200px) and (min-height: 700px) {
   .kitchen-layout { padding-top: 26px; padding-bottom: 35px; gap: 22px; }
@@ -335,4 +349,31 @@
   .recipe-turn { transition: none; }
   .clock-hand, .clock-progress { animation: none; }
   .kitchen-game .animate-pulse, .ingredient-shortage-hint { animation: none; }
+}
+
+/* Simple, image-led restaurant choices */
+.restaurant-home-heading { margin-bottom: 25px; }
+.home-brand-mark { display: none; }
+.home-title { margin: 0; }
+.restaurant-choice-main { display: block; min-height: 0; }
+.restaurant-choice-scene { min-height: 0; height: clamp(260px, 31vw, 360px); border-radius: 25px 25px 0 0; }
+.restaurant-choice-scene::before { inset: 14px; border-width: 1px; border-radius: 17px; }
+.scene-sun { top: 30px; width: 132px; height: 132px; }
+.scene-hero { width: 190px; height: 190px; padding: 0; font-size: 115px; transform: translateY(-7px); }
+.western-hero { border: 0; border-radius: 0; background: none; box-shadow: none; filter: drop-shadow(0 15px 9px #26181080); }
+.scene-food-image { position: relative; z-index: 2; width: min(75%, 260px); height: 78%; object-fit: contain; filter: drop-shadow(0 14px 10px #30181470); transform: translateY(-8px); }
+.scene-table { bottom: 34px; width: 67%; height: 24px; }
+.restaurant-choice-name { position: absolute; z-index: 4; right: 0; bottom: 0; left: 0; padding: 42px 22px 18px; color: #fff9eb; background: linear-gradient(transparent, #211711b8); font-size: clamp(27px, 3vw, 36px); font-weight: 950; letter-spacing: .1em; text-align: left; text-shadow: 0 2px 8px #1b110e80; }
+.restaurant-choice-footer { min-height: 72px; }
+@media (max-width: 700px) {
+  .restaurant-home-heading { margin-bottom: 20px; }
+  .restaurant-choice-main { min-height: 0; }
+  .restaurant-choice-scene { min-height: 0; height: 255px; }
+  .scene-hero { width: 164px; height: 164px; font-size: 100px; }
+}
+@media (max-width: 390px) {
+  .restaurant-choice-main { grid-template-columns: none; min-height: 0; }
+  .restaurant-choice-scene { min-height: 0; height: 225px; }
+  .scene-hero { width: 145px; height: 145px; font-size: 88px; }
+  .restaurant-choice-name { padding: 36px 17px 15px; }
 }

@@ -39,6 +39,16 @@ const isLeaderboardQualified = (restaurantId: RestaurantId, score: number): bool
   return score > leaderboard[leaderboard.length - 1].score;
 };
 
+const tutorialSeenKey = 'kitchenMaster_tutorial_seen';
+const tutorialSteps = [
+  { target: '[data-tutorial="orders"]', title: '先看顾客订单', text: '每张订单都有指定菜品和倒计时。优先处理快到时间的订单。' },
+  { target: '[data-tutorial="supplies"]', title: '缺料就去进货', text: '左边可以购买食材，等配送到货后会放进右侧仓库。' },
+  { target: '[data-tutorial="recipes"]', title: '选择菜谱开始做菜', text: '查看菜谱需要的食材和时间，再点击烹饪。食材会从仓库扣除。' },
+  { target: '[data-tutorial="stoves"]', title: '灶台负责烹饪', text: '菜做好后，上方对应订单会出现上菜按钮。完成订单才能赚钱。' },
+  { target: '[data-tutorial="stats"]', title: '留意资金和人气', text: '订单超时会损失人气；人气或余额归零都会结束游戏。' },
+  { target: '[data-tutorial="timer"]', title: '倒计时也能暂停', text: '点击右上角时间可以暂停或继续。随时点右上角问号，可以重看这份指引。' },
+];
+
 // 最高分相关函数
 const getHighScore = (restaurantId: RestaurantId): number => {
   const data = localStorage.getItem(`${storagePrefix(restaurantId)}_highscore`);
@@ -90,7 +100,8 @@ const App: React.FC = () => {
     isPaused: false
   });
   
-  const [showRules, setShowRules] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState<number | null>(null);
+  const [tutorialRect, setTutorialRect] = useState<DOMRect | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const wasPausedBeforeExitConfirm = useRef(false);
   const [showCookwareShop, setShowCookwareShop] = useState(false);
@@ -208,6 +219,7 @@ const App: React.FC = () => {
 
   const startGame = (forRestaurantId: RestaurantId = restaurantId) => {
     const forRestaurant = RESTAURANTS[forRestaurantId];
+    const shouldShowTutorial = localStorage.getItem(tutorialSeenKey) !== '1';
     setIngredientHint(hint => ({ ...hint, ids: [] }));
     playSfx(sfxClick.current);
     bgmRef.current?.play().catch(() => {});
@@ -222,8 +234,32 @@ const App: React.FC = () => {
       popularity: 100,
       timeLeft: forRestaurant.gameDuration,
       gameStatus: 'playing',
-      isPaused: false
+      isPaused: shouldShowTutorial
     });
+    if (shouldShowTutorial) {
+      localStorage.setItem(tutorialSeenKey, '1');
+      setTutorialStep(0);
+    }
+  };
+
+  useEffect(() => {
+    if (tutorialStep === null) { setTutorialRect(null); return; }
+    const updateRect = () => {
+      const target = document.querySelector(tutorialSteps[tutorialStep]?.target);
+      setTutorialRect(target?.getBoundingClientRect() ?? null);
+    };
+    const target = document.querySelector(tutorialSteps[tutorialStep]?.target);
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    updateRect();
+    const scrollTimeout = window.setTimeout(updateRect, 350);
+    window.addEventListener('resize', updateRect);
+    window.addEventListener('scroll', updateRect, true);
+    return () => { window.clearTimeout(scrollTimeout); window.removeEventListener('resize', updateRect); window.removeEventListener('scroll', updateRect, true); };
+  }, [tutorialStep]);
+
+  const closeTutorial = () => {
+    setTutorialStep(null);
+    if (state.gameStatus === 'playing') setState(prev => ({ ...prev, isPaused: false }));
   };
 
   const buyIngredient = (id: IngredientId) => {
@@ -616,9 +652,7 @@ const App: React.FC = () => {
           {/* Logo区域 */}
           <div className="restaurant-home-heading text-center">
             <div className="home-brand-mark"><Flame aria-hidden="true" /></div>
-            <div className="home-eyebrow">YOUR KITCHEN · YOUR STORY</div>
             <h1 className="home-title">Kitchen <span>Master</span></h1>
-            <p>挑选你的招牌餐厅，开始今天的营业</p>
           </div>
 
           <div className="restaurant-home-grid">
@@ -630,16 +664,9 @@ const App: React.FC = () => {
                     onClick={() => { setRestaurantId(option.id); setShowHomepage(false); startGame(option.id); }}>
                     <span className="restaurant-choice-scene" aria-hidden="true">
                       <span className="scene-sun" />
-                      <span className="scene-decor scene-decor-left">{isWestern ? '🍅' : '🏮'}</span>
-                      <span className="scene-hero">{isWestern ? '🍔' : '🥢'}</span>
-                      <span className="scene-decor scene-decor-right">{isWestern ? '🍟' : '🥟'}</span>
+                      {isWestern ? <span className="scene-hero western-hero">🍔</span> : <img className="scene-food-image" src="/assets/mapo-tofu.png" alt="" />}
                       <span className="scene-table" />
-                    </span>
-                    <span className="restaurant-choice-copy">
-                      <span className="restaurant-choice-kicker">{isWestern ? 'THE LITTLE BISTRO' : '东方烟火 · 家常好味'}</span>
-                      <strong>{option.name}</strong>
-                      <span className="restaurant-choice-tagline">{option.tagline}</span>
-                      <span className="restaurant-enter">进入餐厅 <span aria-hidden="true">→</span></span>
+                      <strong className="restaurant-choice-name">{option.name}</strong>
                     </span>
                   </button>
                   <div className="restaurant-choice-footer">
@@ -802,7 +829,7 @@ const App: React.FC = () => {
 
       
       <header className="bg-white border-b-2 border-stone-200 px-4 py-1 flex items-center justify-between shrink-0 shadow-sm z-50">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4" data-tutorial="stats">
           <button type="button" title="返回主页" onClick={() => {
               wasPausedBeforeExitConfirm.current = state.isPaused;
               setShowExitConfirm(true);
@@ -820,13 +847,13 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => { setShowRules(true); if (state.gameStatus === 'playing') setState(prev => ({ ...prev, isPaused: true })); }} className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 z-[400] relative" title="游戏规则" style={{ pointerEvents: 'auto' }}>
+          <button onClick={() => { setTutorialStep(0); if (state.gameStatus === 'playing') setState(prev => ({ ...prev, isPaused: true })); }} className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 z-[400] relative" title="游戏规则" aria-label="游戏规则" style={{ pointerEvents: 'auto' }}>
             <AlertCircle className="w-4 h-4" />
           </button>
           <button onClick={() => setIsMuted(!isMuted)} className="p-1.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-500 border border-stone-200 z-[400] relative" style={{ pointerEvents: 'auto' }}>
             {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
-          <button onClick={togglePause} disabled={state.gameStatus !== 'playing'} className={`flex items-center gap-1.5 px-4 py-1 rounded-full border transition-all ${state.timeLeft < 30 ? 'bg-red-600 text-white animate-pulse border-white' : 'bg-stone-800 text-white border-stone-700'} ${state.gameStatus !== 'playing' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'} z-[400] relative`} style={{ pointerEvents: 'auto' }}>
+          <button data-tutorial="timer" onClick={togglePause} disabled={state.gameStatus !== 'playing'} className={`flex items-center gap-1.5 px-4 py-1 rounded-full border transition-all ${state.timeLeft < 30 ? 'bg-red-600 text-white animate-pulse border-white' : 'bg-stone-800 text-white border-stone-700'} ${state.gameStatus !== 'playing' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'} z-[400] relative`} style={{ pointerEvents: 'auto' }}>
             <Clock className="w-4 h-4" />
             <span className="text-xl font-black tabular-nums">{formatTime(state.timeLeft)}</span>
             {state.isPaused && <span className="text-xs ml-1">(暂停)</span>}
@@ -835,7 +862,7 @@ const App: React.FC = () => {
       </header>
 
       <main className="kitchen-layout">
-        <section className="supply-section" aria-label="进货与仓库">
+        <section className="supply-section" aria-label="进货与仓库" data-tutorial="supplies">
           <div className="supply-headings">
             <h2><ShoppingCart />进货</h2><h2><Package />仓库</h2>
           </div>
@@ -866,7 +893,7 @@ const App: React.FC = () => {
         {/* Menu & Kitchen Section (Center) */}
         <div className="menu-kitchen">
           {/* Menu Section */}
-          <section className="menu-board">
+          <section className="menu-board" data-tutorial="recipes">
             <div className="bg-stone-700 px-2 py-1 flex items-center justify-between text-white shrink-0">
               <div className="flex items-center gap-1"><TrendingUp className="w-3 h-3 text-orange-300" /><h2 className="text-[13px] font-black uppercase tracking-wider truncate">菜单</h2></div>
               <details className="menu-sort" onBlur={event => {
@@ -911,7 +938,7 @@ const App: React.FC = () => {
           </section>
 
           {/* Cooking Section */}
-          <section className={`stove-section flex flex-col p-1 ${restaurant.cookwareTypes.length > 0 ? 'has-cookware' : ''}`}>
+          <section className={`stove-section flex flex-col p-1 ${restaurant.cookwareTypes.length > 0 ? 'has-cookware' : ''}`} data-tutorial="stoves">
             {restaurant.cookwareTypes.length > 0 && (
               <div className="cookware-purchase-rack" aria-label="锅具仓库"
                 onDragOver={event => {
@@ -1057,7 +1084,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Orders Section (Right) */}
-        <section className="orders-section flex flex-col">
+        <section className="orders-section flex flex-col" data-tutorial="orders">
           <div className="bg-stone-700 px-2 py-1 flex items-center justify-between text-white shrink-0">
             <div className="flex items-center gap-1"><AlertCircle className="w-3 h-3 text-red-300" /><h2 className="text-[13px] font-black uppercase tracking-wider truncate">订单</h2></div>
             <span className="bg-white/20 text-[8px] px-1.5 rounded-full font-black">{state.activeOrders.length}</span>
@@ -1169,130 +1196,32 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Game Rules Modal */}
-      {showRules && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[300] flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => { 
-            setShowRules(false); 
-            if (state.gameStatus === 'playing') setState(prev => ({ ...prev, isPaused: false })); 
-            if (state.gameStatus !== 'playing') setShowHomepage(true);
-          }}
-        >
-          <div 
-            className="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-4 border-orange-200 animate-in zoom-in duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-orange-600 text-white px-6 py-4 border-b-4 border-orange-700 z-10">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-6 h-6" />
-                <h2 className="text-2xl font-black uppercase tracking-wider">游戏规则</h2>
-              </div>
+      {tutorialStep !== null && (() => {
+        const step = tutorialSteps[tutorialStep];
+        const rect = tutorialRect;
+        const bubbleWidth = Math.min(340, window.innerWidth - 32);
+        const bubbleLeft = rect ? Math.max(16, Math.min(window.innerWidth - bubbleWidth - 16, rect.left + rect.width / 2 - bubbleWidth / 2)) : (window.innerWidth - bubbleWidth) / 2;
+        const placeBelow = !!rect && rect.bottom + 210 < window.innerHeight;
+        const bubbleTop = rect ? Math.max(16, Math.min(window.innerHeight - 190, placeBelow ? rect.bottom + 14 : rect.top - 194)) : Math.max(24, window.innerHeight / 2 - 100);
+        const cutout = rect ? { left: Math.max(0, rect.left - 8), top: Math.max(0, rect.top - 8), width: Math.min(window.innerWidth, rect.width + 16), height: Math.min(window.innerHeight, rect.height + 16) } : null;
+        return <div className="tutorial-layer" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+          {cutout && <>
+            <div className="tutorial-shade" style={{ left: 0, top: 0, width: '100%', height: cutout.top }} />
+            <div className="tutorial-shade" style={{ left: 0, top: cutout.top, width: cutout.left, height: cutout.height }} />
+            <div className="tutorial-shade" style={{ left: cutout.left + cutout.width, top: cutout.top, right: 0, height: cutout.height }} />
+            <div className="tutorial-shade" style={{ left: 0, top: cutout.top + cutout.height, width: '100%', bottom: 0 }} />
+            <div className="tutorial-focus" style={{ left: cutout.left, top: cutout.top, width: cutout.width, height: cutout.height }} />
+          </>}
+          <section className={`tutorial-bubble ${placeBelow ? 'arrow-top' : 'arrow-bottom'}`} style={{ left: bubbleLeft, top: bubbleTop, width: bubbleWidth }}>
+            <div className="tutorial-progress">新手指引 · {tutorialStep + 1}/{tutorialSteps.length}</div>
+            <h2 id="tutorial-title">{step.title}</h2><p>{step.text}</p>
+            <div className="tutorial-actions">
+              <button type="button" className="tutorial-skip" onClick={closeTutorial}>关闭指引</button>
+              <button type="button" className="tutorial-next" onClick={() => tutorialStep === tutorialSteps.length - 1 ? closeTutorial() : setTutorialStep(tutorialStep + 1)}>{tutorialStep === tutorialSteps.length - 1 ? '完成' : '下一步'}</button>
             </div>
-            <div className="p-6 space-y-6 text-stone-800">
-              <section>
-                <h3 className="text-xl font-black text-orange-600 mb-3 uppercase">游戏目标</h3>
-                <p className="text-base leading-relaxed">在规定的5分钟内，让店铺赚取最多的钱。但要注意：<strong className="text-red-600">人气值不能降到0%</strong>，否则游戏失败！</p>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-black text-orange-600 mb-3 uppercase">人气值系统</h3>
-                <ul className="space-y-2 text-base">
-                  <li>• <strong>初始值：</strong>100%</li>
-                  <li>• <strong>成功完成订单：</strong>+1% 人气值</li>
-                  <li>• <strong>订单过期：</strong>-5% 人气值</li>
-                  <li>• <strong>特殊顾客：</strong>
-                    <ul className="ml-4 mt-1 space-y-1">
-                      <li>- 博主：完成订单 +15% 人气，过期 -30% 人气</li>
-                      <li>- 挑剔顾客：过期 -20% 人气</li>
-                      <li>- 豪爽顾客：完成订单 +10% 人气，额外 +$20 小费</li>
-                    </ul>
-                  </li>
-                  <li>• <strong>订单数量：</strong>根据人气值动态调整
-                    <ul className="ml-4 mt-1 space-y-1">
-                      <li>- 80-100% 人气：同时最多4个订单</li>
-                      <li>- 60-80% 人气：同时最多3个订单</li>
-                      <li>- 40-60% 人气：同时最多2个订单</li>
-                      <li>- 40% 以下：同时最多1个订单</li>
-                    </ul>
-                  </li>
-                  <li>• <strong>失败条件：</strong>人气值降到0%</li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-black text-orange-600 mb-3 uppercase">店铺余额</h3>
-                <ul className="space-y-2 text-base">
-                  <li>• <strong>初始资金：</strong>$100</li>
-                  <li>• <strong>收入来源：</strong>完成订单获得菜品售价</li>
-                  <li>• <strong>支出：</strong>购买食材</li>
-                  <li>• <strong>特殊收入：</strong>豪爽顾客会额外给小费 +$20</li>
-                  <li>• <strong>最终结算：</strong>游戏结束时显示最终余额和累计营业额</li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-black text-orange-600 mb-3 uppercase">进货规则</h3>
-                <ul className="space-y-2 text-base">
-                  <li>• <strong>点击食材按钮：</strong>花费对应价格购买食材</li>
-                  <li>• <strong>配送时间：</strong>购买后需要等待配送时间（秒）才能到货</li>
-                  <li>• <strong>库存上限：</strong>每种食材最多存储10个（包括配送中的）</li>
-                  <li>• <strong>价格排序：</strong>食材按价格从低到高排列</li>
-                  <li>• <strong>配送进度：</strong>圆形时钟显示最近一件配送进度，角标显示待到货数量</li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-black text-orange-600 mb-3 uppercase">灶台系统</h3>
-                <ul className="space-y-2 text-base">
-                  <li>• <strong>初始灶台：</strong>游戏开始时拥有2个灶台</li>
-                  <li>• <strong>最大灶台：</strong>最多可扩展至4个灶台</li>
-                  <li>• <strong>安装费用：</strong>安装一个新灶台需要${restaurant.stoveInstallCost}金币</li>
-                  <li>• <strong>安装时间：</strong>安装新灶台需要${restaurant.stoveInstallTime}秒</li>
-                  <li>• <strong>点击+号：</strong>点击空置灶台位置可以安装新灶台</li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-black text-orange-600 mb-3 uppercase">做菜规则</h3>
-                <ul className="space-y-2 text-base">
-                  <li>• <strong>点击菜谱卡片：</strong>翻面查看食材和时间；点击烹饪按钮开始制作</li>
-                  <li>• <strong>食材需求：</strong>必须拥有足够的食材才能开始烹饪</li>
-                  {restaurant.cookwareTypes.length > 0 && <li>• <strong>锅具：</strong>灶台建造与锅具购买分开计费；点锅具仓库里的锅可放到第一个空灶台，也可拖到指定空灶台；没有空灶台时不会放置。点最右侧加号购买炒锅、煮锅或高压锅。菜品只能用对应类型的锅具制作；高压锅可当煮锅使用，煮类菜烹饪时间减半。</li>}
-                  <li>• <strong>烹饪时间：</strong>不同菜品需要不同的烹饪时间（秒）</li>
-                  <li>• <strong>灶台数量：</strong>同时最多在已安装的灶台上烹饪</li>
-                  <li>• <strong>取消烹饪：</strong>可以点击X按钮取消，但食材会损耗</li>
-                  <li>• <strong>完成烹饪：</strong>如果有对应订单，自动完成并获得收入</li>
-                  <li>• <strong>无订单：</strong>如果完成时没有对应订单，菜品浪费</li>
-                  <li>• <strong>菜单排序：</strong>点击菜单右上角的排序按钮，可按制作时长、售价或利润从低到高排列；利润为售价减去食材总成本</li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-black text-orange-600 mb-3 uppercase">订单规则</h3>
-                <ul className="space-y-2 text-base">
-                  <li>• <strong>订单生成：</strong>随机生成，有时间限制（20-50秒）</li>
-                  <li>• <strong>订单类型：</strong>普通、博主、挑剔、豪爽四种顾客类型</li>
-                  <li>• <strong>完成方式：</strong>烹饪对应菜品后自动完成</li>
-                  <li>• <strong>超时处理：</strong>订单时间到后进入紧急催单状态（20秒），每2秒扣1点人气值，超时后订单消失并扣除额外人气值</li>
-                  <li>• <strong>紧急提示：</strong>剩余时间少于15秒或处于催单状态时，订单会闪烁红色</li>
-                  <li>• <strong>订单数量：</strong>根据当前人气值动态调整（见人气值系统）</li>
-                </ul>
-              </section>
-
-              <section>
-                <h3 className="text-xl font-black text-orange-600 mb-3 uppercase">操作提示</h3>
-                <ul className="space-y-2 text-base">
-                  <li>• <strong>暂停游戏：</strong>点击倒计时可以暂停/继续游戏</li>
-                  <li>• <strong>暂停状态：</strong>暂停时所有按钮变灰，无法操作</li>
-                  <li>• <strong>查看规则：</strong>点击规则按钮可以随时查看游戏规则</li>
-                  <li>• <strong>静音：</strong>点击音量按钮可以开关音效</li>
-                </ul>
-              </section>
-            </div>
-          </div>
-        </div>
-      )}
+          </section>
+        </div>;
+      })()}
 
     </div>
   );
