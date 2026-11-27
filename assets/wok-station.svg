@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" role="img" aria-label="炒锅灶台">
+  <defs>
+    <linearGradient id="metal" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#66717a"/><stop offset="1" stop-color="#303840"/></linearGradient>
+    <linearGradient id="flame" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#ffcb52"/><stop offset="1" stop-color="#ef6338"/></linearGradient>
+  </defs>
+  <path d="M48 56c-4 9-2 15 2 20h20c4-6 5-12 1-20z" fill="url(#flame)"/>
+  <path d="M19 36c5 23 22 34 41 34s36-11 41-34H19z" fill="url(#metal)" stroke="#20272d" stroke-width="4"/>
+  <path d="M18 35h-9M102 35h9" fill="none" stroke="#303840" stroke-linecap="round" stroke-width="8"/>
+  <path d="M31 48c9 6 49 6 58 0" fill="none" stroke="#aeb8bf" stroke-linecap="round" stroke-width="3" opacity=".8"/>
+  <path d="M37 76h46" stroke="#574235" stroke-linecap="round" stroke-width="6"/>
+</svg>

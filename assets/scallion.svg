@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="青葱">
+  <path d="M30 59c2-18 1-31-4-47 8 9 13 22 13 46z" fill="#f4f1d1" stroke="#558748" stroke-width="2"/>
+  <path d="M34 58c2-20 8-37 20-48-5 15-8 31-8 48z" fill="#55a84b" stroke="#377c3c" stroke-width="2"/>
+  <path d="M29 58C22 40 18 24 20 11c7 15 12 30 13 47z" fill="#72bd55" stroke="#438b42" stroke-width="2"/>
+  <path d="M26 54c4-13 7-25 8-37M38 53c2-13 7-26 13-36" fill="none" stroke="#a8d97a" stroke-linecap="round" stroke-width="2"/>
+  <path d="M29 56l-5 5m7-5-1 7m5-7 3 6m1-8 7 5" fill="none" stroke="#eee6c5" stroke-linecap="round" stroke-width="2"/>
+</svg>

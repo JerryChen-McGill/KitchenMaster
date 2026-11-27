@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { CookButton, DeliveryClock, DishArtwork, RecipeCard, StockShelf } from './KitchenUI';
+import { CookButton, CookwareArtwork, DeliveryClock, DishArtwork, IngredientArtwork, RecipeCard, StockShelf } from './KitchenUI';
 import './kitchen.css';
 import { 
-  ShoppingCart, Flame, Clock, DollarSign, Package, Play, 
+  ShoppingCart, Flame, Clock, DollarSign, Package,
   RotateCcw, AlertCircle, Heart, TrendingUp, TrendingDown, 
   Truck, Star, Volume2, VolumeX, XCircle, Trash2, Skull, Trophy, User, ArrowDownWideNarrow, Check, Utensils
 } from 'lucide-react';
-import { INGREDIENTS, RECIPES, getRecipeProfit, INITIAL_MONEY, GAME_DURATION, STOVE_COUNT, INITIAL_STOVES, STOVE_INSTALL_COST, STOVE_INSTALL_TIME } from './constants';
+import { getRecipeProfit } from './constants';
 import { IngredientId, GameState, Recipe, Order, Stove, PendingDelivery, CustomerType } from './types';
+import { createInitialCookwareInventory, createInitialInventory, RESTAURANTS, RestaurantId, RestaurantConfig } from './restaurants';
 
 // 排行榜相关函数
 interface LeaderboardEntry {
@@ -18,78 +19,89 @@ interface LeaderboardEntry {
   date: string;
 }
 
-const getLeaderboard = (): LeaderboardEntry[] => {
-  const data = localStorage.getItem('kitchenMaster_leaderboard');
+const storagePrefix = (restaurantId: RestaurantId) => restaurantId === 'western' ? 'kitchenMaster' : `kitchenMaster_${restaurantId}`;
+const getLeaderboard = (restaurantId: RestaurantId): LeaderboardEntry[] => {
+  const data = localStorage.getItem(`${storagePrefix(restaurantId)}_leaderboard`);
   return data ? JSON.parse(data) : [];
 };
 
-const saveToLeaderboard = (name: string, score: number, popularity: number) => {
-  const leaderboard = getLeaderboard();
+const saveToLeaderboard = (restaurantId: RestaurantId, name: string, score: number, popularity: number) => {
+  const leaderboard = getLeaderboard(restaurantId);
   leaderboard.push({ name, score, popularity, date: new Date().toLocaleDateString() });
   leaderboard.sort((a, b) => b.score - a.score);
   const top6 = leaderboard.slice(0, 6);
-  localStorage.setItem('kitchenMaster_leaderboard', JSON.stringify(top6));
+  localStorage.setItem(`${storagePrefix(restaurantId)}_leaderboard`, JSON.stringify(top6));
 };
 
-const isLeaderboardQualified = (score: number): boolean => {
-  const leaderboard = getLeaderboard();
+const isLeaderboardQualified = (restaurantId: RestaurantId, score: number): boolean => {
+  const leaderboard = getLeaderboard(restaurantId);
   if (leaderboard.length < 6) return true;
   return score > leaderboard[leaderboard.length - 1].score;
 };
 
 // 最高分相关函数
-const getHighScore = (): number => {
-  const data = localStorage.getItem('kitchenMaster_highscore');
+const getHighScore = (restaurantId: RestaurantId): number => {
+  const data = localStorage.getItem(`${storagePrefix(restaurantId)}_highscore`);
   return data ? parseInt(data, 10) : 0;
 };
 
-const saveHighScore = (score: number) => {
-  const currentHigh = getHighScore();
+const saveHighScore = (restaurantId: RestaurantId, score: number) => {
+  const currentHigh = getHighScore(restaurantId);
   if (score > currentHigh) {
-    localStorage.setItem('kitchenMaster_highscore', score.toString());
+    localStorage.setItem(`${storagePrefix(restaurantId)}_highscore`, score.toString());
     return true;
   }
   return false;
 };
 
 // 创建灶台数组 - 初始只有前INITIAL_STOVES个灶台已安装
-const createStoves = (): Stove[] => {
-  return Array(STOVE_COUNT).fill(null).map((_, i) => ({
+const createStoves = (restaurant: RestaurantConfig): Stove[] => {
+  return Array(restaurant.stoveCount).fill(null).map((_, i) => ({
     id: i,
-    isInstalled: i < INITIAL_STOVES, // 前2个灶台默认已安装
+    cookwareId: restaurant.initialCookwareIds[i] ?? null,
+    isInstalled: i < restaurant.initialStoves,
     installTimeLeft: 0,
     isCooking: false,
     isDone: false,
     dishId: null,
     orderId: null,
     timeRemaining: 0,
+    cookTimeTotal: 0,
     progress: 0
   }));
 };
 
 const App: React.FC = () => {
+  const [restaurantId, setRestaurantId] = useState<RestaurantId>('western');
+  const restaurant = RESTAURANTS[restaurantId];
+  const ingredients = restaurant.ingredients;
+  const recipes = restaurant.recipes;
   const [state, setState] = useState<GameState>({
-    money: INITIAL_MONEY,
-    inventory: { tomato: 2, lettuce: 2, onion: 2, meat: 2, bread: 2, cheese: 2, potato: 2 },
-    stoves: createStoves(),
+    money: restaurant.initialMoney,
+    inventory: createInitialInventory(restaurant),
+    stoves: createStoves(restaurant),
+    cookwareInventory: createInitialCookwareInventory(restaurant),
     activeOrders: [],
     pendingDeliveries: [],
     totalRevenue: 0,
     popularity: 100,
-    timeLeft: GAME_DURATION,
+    timeLeft: restaurant.gameDuration,
     gameStatus: 'idle',
     isPaused: false
   });
   
   const [showRules, setShowRules] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const wasPausedBeforeExitConfirm = useRef(false);
+  const [showCookwareShop, setShowCookwareShop] = useState(false);
   const [recipeSort, setRecipeSort] = useState<'cookingTime' | 'salePrice' | 'profit'>('salePrice');
   const recipeSortOptions = [
     { value: 'cookingTime', label: '制作时长' },
     { value: 'salePrice', label: '售价' },
     { value: 'profit', label: '利润' },
   ] as const;
-  const recipeSortValue = (recipe: Recipe) => recipeSort === 'profit' ? getRecipeProfit(recipe) : recipe[recipeSort];
-  const sortedRecipes = [...RECIPES].sort((a, b) => recipeSortValue(a) - recipeSortValue(b));
+  const recipeSortValue = (recipe: Recipe) => recipeSort === 'profit' ? getRecipeProfit(recipe, ingredients) : recipe[recipeSort];
+  const sortedRecipes = [...recipes].sort((a, b) => recipeSortValue(a) - recipeSortValue(b));
   const [showHomepage, setShowHomepage] = useState(true);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showHighScore, setShowHighScore] = useState(false);
@@ -145,10 +157,10 @@ const App: React.FC = () => {
   useEffect(() => {
     if (state.gameStatus === 'ended' && state.money > 0) {
       // 保存最高分
-      saveHighScore(state.money);
+      saveHighScore(restaurantId, state.money);
       
       // 检查是否进入排行榜
-      if (isLeaderboardQualified(state.money)) {
+      if (isLeaderboardQualified(restaurantId, state.money)) {
         setPendingScore(state.money);
         setPendingPopularity(state.popularity);
         setShowNameEntry(true);
@@ -172,8 +184,9 @@ const App: React.FC = () => {
     setTimeout(() => setNotification(null), 2000);
   };
 
-  const createNewOrder = (): Order => {
-    const randomRecipe = RECIPES[Math.floor(Math.random() * RECIPES.length)];
+  const createNewOrder = (forRestaurant: RestaurantConfig = restaurant): Order => {
+    const restaurantRecipes = forRestaurant.recipes;
+    const randomRecipe = restaurantRecipes[Math.floor(Math.random() * restaurantRecipes.length)];
     const roll = Math.random();
     let type: CustomerType = 'normal';
     if (roll < 0.15) type = 'blogger';
@@ -193,19 +206,21 @@ const App: React.FC = () => {
     };
   };
 
-  const startGame = () => {
+  const startGame = (forRestaurantId: RestaurantId = restaurantId) => {
+    const forRestaurant = RESTAURANTS[forRestaurantId];
     setIngredientHint(hint => ({ ...hint, ids: [] }));
     playSfx(sfxClick.current);
     bgmRef.current?.play().catch(() => {});
     setState({
-      money: INITIAL_MONEY,
-      inventory: { tomato: 2, lettuce: 2, onion: 2, meat: 2, bread: 2, cheese: 2, potato: 2 },
-      stoves: createStoves(),
-      activeOrders: [createNewOrder(), createNewOrder(), createNewOrder(), createNewOrder()], // 初始4个订单（100%人气）
+      money: forRestaurant.initialMoney,
+      inventory: createInitialInventory(forRestaurant),
+      stoves: createStoves(forRestaurant),
+      cookwareInventory: createInitialCookwareInventory(forRestaurant),
+      activeOrders: [createNewOrder(forRestaurant), createNewOrder(forRestaurant), createNewOrder(forRestaurant), createNewOrder(forRestaurant)], // 初始4个订单（100%人气）
       pendingDeliveries: [],
       totalRevenue: 0,
       popularity: 100,
-      timeLeft: GAME_DURATION,
+      timeLeft: forRestaurant.gameDuration,
       gameStatus: 'playing',
       isPaused: false
     });
@@ -215,7 +230,7 @@ const App: React.FC = () => {
     if (state.isPaused) return;
     if (state.money <= 0) return notify("资金不足，无法购买原材料!", 'error');
     
-    const item = INGREDIENTS[id];
+    const item = ingredients[id]!;
     const pendingCount = state.pendingDeliveries.filter(d => d.ingredientId === id).length;
     const currentTotal = state.inventory[id] + pendingCount;
 
@@ -240,7 +255,7 @@ const App: React.FC = () => {
     if (state.isPaused) return;
     if (state.inventory[id] <= 0) return notify("仓库中没有该食材!", 'error');
     
-    const item = INGREDIENTS[id];
+    const item = ingredients[id]!;
     const sellPrice = Math.floor(item.price / 2); // 半价卖出
     
     playSfx(sfxSuccess.current);
@@ -261,17 +276,31 @@ const App: React.FC = () => {
     return missing.length > 0;
   };
 
+  const stoveCanCookRecipe = (stove: Stove, recipe: Recipe): boolean => {
+    if (!stove.isInstalled || stove.isCooking || stove.isDone) return false;
+    if (restaurant.cookwareTypes.length === 0) return true;
+    const cookware = restaurant.cookwareTypes.find(item => item.id === stove.cookwareId);
+    return Boolean(cookware && (!recipe.requiredStationType || cookware.compatibleStationTypes.includes(recipe.requiredStationType)));
+  };
+
+  const hasAvailableStation = (recipe: Recipe): boolean => state.stoves.some(stove => stoveCanCookRecipe(stove, recipe));
+
   const startCooking = (recipe: Recipe, orderId: string | null = null) => {
     if (state.isPaused || highlightMissingIngredients(recipe)) return;
 
-    const freeStoveIndex = state.stoves.findIndex(s => s.isInstalled && !s.isCooking && !s.isDone);
-    if (freeStoveIndex === -1) return notify("没有可用的灶台!", 'error');
+    const freeStoveIndex = state.stoves.findIndex(stove => stoveCanCookRecipe(stove, recipe));
+    if (freeStoveIndex === -1) {
+      const requiredStation = restaurant.stationTypes.find(type => type.id === recipe.requiredStationType);
+      return notify(requiredStation ? `没有空闲灶台放置可用于${requiredStation.name}菜品的${requiredStation.equipmentLabel}` : "没有可用的灶台!", 'error');
+    }
 
     playSfx(sfxCook.current);
     const newInventory = { ...state.inventory };
     Object.entries(recipe.ingredients).forEach(([ingId, count]) => { newInventory[ingId as IngredientId] -= (count || 0); });
     const newStoves = [...state.stoves];
-    newStoves[freeStoveIndex] = { ...newStoves[freeStoveIndex], isCooking: true, dishId: recipe.id, orderId, timeRemaining: recipe.cookingTime, progress: 0 };
+    const cookware = restaurant.cookwareTypes.find(item => item.id === newStoves[freeStoveIndex].cookwareId);
+    const cookTimeTotal = Math.max(1, Math.ceil(recipe.cookingTime * (cookware?.cookingTimeMultiplier ?? 1)));
+    newStoves[freeStoveIndex] = { ...newStoves[freeStoveIndex], isCooking: true, dishId: recipe.id, orderId, timeRemaining: cookTimeTotal, cookTimeTotal, progress: 0 };
     setState(prev => ({
       ...prev, inventory: newInventory, stoves: newStoves,
       activeOrders: prev.activeOrders.map(order => order.id === orderId ? { ...order, isCooking: true } : order),
@@ -282,7 +311,7 @@ const App: React.FC = () => {
   const acceptOrder = (order: Order) => {
     if (state.isPaused || order.isCooking) return;
     
-    const recipe = RECIPES.find(r => r.id === order.dishId);
+    const recipe = recipes.find(r => r.id === order.dishId);
     if (!recipe) return;
 
     startCooking(recipe, order.id);
@@ -294,7 +323,7 @@ const App: React.FC = () => {
     playSfx(sfxClick.current);
     const newStoves = state.stoves.map(s => {
       if (s.id === stoveId && s.isCooking) {
-        return { ...s, isCooking: false, dishId: null, orderId: null, progress: 0, timeRemaining: 0 };
+        return { ...s, isCooking: false, dishId: null, orderId: null, progress: 0, timeRemaining: 0, cookTimeTotal: 0 };
       }
       return s;
     });
@@ -308,7 +337,7 @@ const App: React.FC = () => {
     playSfx(sfxClick.current);
     const newStoves = state.stoves.map(s => {
       if (s.id === stoveId && s.isDone) {
-        return { ...s, isDone: false, dishId: null, orderId: null, progress: 0 };
+        return { ...s, isDone: false, dishId: null, orderId: null, progress: 0, timeRemaining: 0, cookTimeTotal: 0 };
       }
       return s;
     });
@@ -323,7 +352,7 @@ const App: React.FC = () => {
     const order = state.activeOrders.find(o => o.id === orderId);
     if (!order) return;
     
-    const recipe = RECIPES.find(r => r.id === order.dishId);
+    const recipe = recipes.find(r => r.id === order.dishId);
     if (!recipe) return;
     
     // 查找灶台上是否有对应的已做好的菜品
@@ -336,7 +365,7 @@ const App: React.FC = () => {
     // 清除灶台上的菜品
     const newStoves = state.stoves.map((s, i) => {
       if (i === stoveIndex) {
-        return { ...s, isDone: false, dishId: null, orderId: null, progress: 0 };
+        return { ...s, isDone: false, dishId: null, orderId: null, progress: 0, timeRemaining: 0, cookTimeTotal: 0 };
       }
       return s;
     });
@@ -362,26 +391,74 @@ const App: React.FC = () => {
     notify(`上菜: ${recipe.name}! +$${recipe.salePrice + tip}`, 'success');
   };
 
-  // 安装新灶台
-  const installStove = (stoveId: number) => {
+  // 建造空灶台；锅具需要另行购买和放置。
+  const buildStove = (stoveId: number) => {
     if (state.isPaused) return;
     
     const stove = state.stoves[stoveId];
     if (stove.isInstalled || stove.installTimeLeft > 0) return; // 灶台已安装或正在安装
-    if (state.money < STOVE_INSTALL_COST) return notify("资金不足，无法安装新灶台!", 'error');
+    if (state.money < restaurant.stoveInstallCost) return notify("资金不足，无法安装新灶台!", 'error');
     
     playSfx(sfxBuy.current);
     setState(prev => ({
       ...prev,
-      money: prev.money - STOVE_INSTALL_COST,
+      money: prev.money - restaurant.stoveInstallCost,
       stoves: prev.stoves.map(s => {
         if (s.id === stoveId) {
-          return { ...s, installTimeLeft: STOVE_INSTALL_TIME };
+          return { ...s, installTimeLeft: restaurant.stoveInstallTime };
         }
         return s;
       })
     }));
-    notify(`开始安装新灶台...`, 'neutral');
+    notify(`开始建造灶台...`, 'neutral');
+  };
+
+  const buyCookware = (cookwareId: string) => {
+    if (state.isPaused) return false;
+    const cookware = restaurant.cookwareTypes.find(item => item.id === cookwareId);
+    if (!cookware) return false;
+    if (state.money < cookware.price) { notify("资金不足，无法购买锅具!", 'error'); return false; }
+    setState(prev => ({
+      ...prev,
+      money: prev.money - cookware.price,
+      cookwareInventory: { ...prev.cookwareInventory, [cookwareId]: (prev.cookwareInventory[cookwareId] ?? 0) + 1 },
+    }));
+    notify(`已购买${cookware.name}，可放到空灶台上`, 'success');
+    return true;
+  };
+
+  const placeFirstAvailableCookware = (cookwareId: string) => {
+    if (state.isPaused || (state.cookwareInventory[cookwareId] ?? 0) < 1) return;
+    const emptyStove = state.stoves.find(stove => stove.isInstalled && !stove.isCooking && !stove.isDone && !stove.cookwareId);
+    if (emptyStove) placeCookware(emptyStove.id, cookwareId);
+  };
+
+  const placeCookware = (stoveId: number, cookwareId: string) => {
+    if (state.isPaused) return;
+    const stove = state.stoves[stoveId];
+    const cookware = restaurant.cookwareTypes.find(item => item.id === cookwareId);
+    if (!stove?.isInstalled || stove.isCooking || stove.isDone || stove.cookwareId || !cookware) return;
+    if ((state.cookwareInventory[cookwareId] ?? 0) < 1) return;
+    setState(prev => ({
+      ...prev,
+      cookwareInventory: { ...prev.cookwareInventory, [cookwareId]: prev.cookwareInventory[cookwareId] - 1 },
+      stoves: prev.stoves.map(item => item.id === stoveId ? { ...item, cookwareId } : item),
+    }));
+    notify(`已将${cookware.name}放到灶台上`, 'success');
+  };
+
+  const removeCookware = (stoveId: number) => {
+    if (state.isPaused) return;
+    const stove = state.stoves[stoveId];
+    if (!stove?.cookwareId || stove.isCooking || stove.isDone) return;
+    const cookwareId = stove.cookwareId;
+    const cookware = restaurant.cookwareTypes.find(item => item.id === cookwareId);
+    setState(prev => ({
+      ...prev,
+      cookwareInventory: { ...prev.cookwareInventory, [cookwareId]: (prev.cookwareInventory[cookwareId] ?? 0) + 1 },
+      stoves: prev.stoves.map(item => item.id === stoveId ? { ...item, cookwareId: null } : item),
+    }));
+    notify(cookware ? `已撤下${cookware.name}，可重新放置` : '已撤下锅具', 'neutral');
   };
 
   // 根据人气值计算最大订单数
@@ -441,9 +518,10 @@ const App: React.FC = () => {
           }
           // 处理烹饪倒计时
           if (!s.isCooking) return s;
-          const recipe = RECIPES.find(r => r.id === s.dishId)!;
+          const recipe = recipes.find(r => r.id === s.dishId)!;
           const newTime = Math.max(0, s.timeRemaining - 1);
-          return { ...s, timeRemaining: newTime, progress: ((recipe.cookingTime - newTime) / recipe.cookingTime) * 100 };
+          const cookTimeTotal = s.cookTimeTotal || recipe.cookingTime;
+          return { ...s, timeRemaining: newTime, progress: ((cookTimeTotal - newTime) / cookTimeTotal) * 100 };
         });
 
         let newRevenue = prev.totalRevenue;
@@ -453,7 +531,7 @@ const App: React.FC = () => {
 
         const finalStoves = updatedStoves.map(s => {
           if (s.isCooking && s.timeRemaining === 0) {
-            const recipe = RECIPES.find(r => r.id === s.dishId)!;
+            const recipe = recipes.find(r => r.id === s.dishId)!;
             
             // 如果有关联的订单ID，尝试自动完成订单
             if (s.orderId) {
@@ -470,7 +548,7 @@ const App: React.FC = () => {
                 newPopularity = Math.min(100, newPopularity + popGain);
                 currentOrders.splice(orderIndex, 1);
                 notify(`卖出: ${recipe.name}!`, 'success');
-                return { ...s, isCooking: false, dishId: null, orderId: null, progress: 0 };
+                return { ...s, isCooking: false, dishId: null, orderId: null, progress: 0, timeRemaining: 0, cookTimeTotal: 0 };
               }
               // 订单已过期，灶台上的菜保留，需要手动上菜
             }
@@ -532,36 +610,50 @@ const App: React.FC = () => {
 
   // 主页UI
   if (showHomepage) {
-    const highScore = getHighScore();
     return (
-      <div className="min-h-screen bg-gradient-to-b from-orange-100 to-orange-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
+      <div className="restaurant-home min-h-screen flex items-center justify-center p-5 sm:p-8">
+        <div className="restaurant-home-inner w-full">
           {/* Logo区域 */}
-          <div className="text-center mb-8">
-            <div className="w-24 h-24 rounded-full bg-orange-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <Flame className="w-12 h-12 text-white" />
-            </div>
-            <h1 className="text-4xl font-black text-orange-600 uppercase tracking-wider">Kitchen Master</h1>
-            <p className="text-stone-500 font-bold mt-2">汉堡店经营模拟游戏</p>
+          <div className="restaurant-home-heading text-center">
+            <div className="home-brand-mark"><Flame aria-hidden="true" /></div>
+            <div className="home-eyebrow">YOUR KITCHEN · YOUR STORY</div>
+            <h1 className="home-title">Kitchen <span>Master</span></h1>
+            <p>挑选你的招牌餐厅，开始今天的营业</p>
           </div>
 
-          {/* 按钮区域 */}
-          <div className="space-y-4">
-            <button 
-              onClick={() => { setShowHomepage(false); startGame(); }}
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-3"
-            >
-              <Play className="w-6 h-6 fill-current" /> 开始经营
-            </button>
-
-            <div className="flex gap-4">
-              <button 
-                onClick={() => { setShowHomepage(false); setShowLeaderboard(true); }}
-                className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-black py-3 rounded-xl text-lg shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2"
-              >
-                <Trophy className="w-5 h-5" /> 排行榜
-              </button>
-            </div>
+          <div className="restaurant-home-grid">
+            {Object.values(RESTAURANTS).map(option => {
+              const isWestern = option.id === 'western';
+              return (
+                <article key={option.id} className={`restaurant-choice ${isWestern ? 'restaurant-choice-western' : 'restaurant-choice-chinese'}`}>
+                  <button type="button" className="restaurant-choice-main"
+                    onClick={() => { setRestaurantId(option.id); setShowHomepage(false); startGame(option.id); }}>
+                    <span className="restaurant-choice-scene" aria-hidden="true">
+                      <span className="scene-sun" />
+                      <span className="scene-decor scene-decor-left">{isWestern ? '🍅' : '🏮'}</span>
+                      <span className="scene-hero">{isWestern ? '🍔' : '🥢'}</span>
+                      <span className="scene-decor scene-decor-right">{isWestern ? '🍟' : '🥟'}</span>
+                      <span className="scene-table" />
+                    </span>
+                    <span className="restaurant-choice-copy">
+                      <span className="restaurant-choice-kicker">{isWestern ? 'THE LITTLE BISTRO' : '东方烟火 · 家常好味'}</span>
+                      <strong>{option.name}</strong>
+                      <span className="restaurant-choice-tagline">{option.tagline}</span>
+                      <span className="restaurant-enter">进入餐厅 <span aria-hidden="true">→</span></span>
+                    </span>
+                  </button>
+                  <div className="restaurant-choice-footer">
+                    <div className="restaurant-record">
+                      <TrendingUp aria-hidden="true" />
+                      <span><small>历史最高营收</small><strong>${getHighScore(option.id)}</strong></span>
+                    </div>
+                    <button type="button" aria-label={`${option.name}排行榜`}
+                      onClick={() => { setRestaurantId(option.id); setShowHomepage(false); setShowLeaderboard(true); }}
+                      className="restaurant-ranking"><Trophy aria-hidden="true" /> 排行榜</button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -570,14 +662,14 @@ const App: React.FC = () => {
 
   // 排行榜UI
   if (showLeaderboard) {
-    const leaderboard = getLeaderboard();
+    const leaderboard = getLeaderboard(restaurantId);
     return (
       <div className="min-h-screen bg-gradient-to-b from-yellow-50 to-yellow-100 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-[2rem] shadow-2xl p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Trophy className="w-8 h-8 text-yellow-500" />
-              <h2 className="text-2xl font-black text-stone-800">排行榜</h2>
+              <h2 className="text-2xl font-black text-stone-800">{restaurant.name}排行榜</h2>
             </div>
             <button onClick={() => { setShowLeaderboard(false); setShowHomepage(true); }} className="p-2 bg-stone-100 rounded-full hover:bg-stone-200">
               <XCircle className="w-6 h-6 text-stone-500" />
@@ -618,7 +710,7 @@ const App: React.FC = () => {
 
   // 最高分记录UI
   if (showHighScore) {
-    const highScore = getHighScore();
+    const highScore = getHighScore(restaurantId);
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-[2rem] shadow-2xl p-6">
@@ -673,7 +765,7 @@ const App: React.FC = () => {
             <button
               onClick={() => {
                 if (playerName.trim()) {
-                  saveToLeaderboard(playerName.trim(), pendingScore, pendingPopularity);
+                  saveToLeaderboard(restaurantId, playerName.trim(), pendingScore, pendingPopularity);
                   setShowNameEntry(false);
                   setShowLeaderboard(true);
                   setPlayerName('');
@@ -711,6 +803,13 @@ const App: React.FC = () => {
       
       <header className="bg-white border-b-2 border-stone-200 px-4 py-1 flex items-center justify-between shrink-0 shadow-sm z-50">
         <div className="flex items-center gap-4">
+          <button type="button" title="返回主页" onClick={() => {
+              wasPausedBeforeExitConfirm.current = state.isPaused;
+              setShowExitConfirm(true);
+              setState(prev => ({ ...prev, isPaused: true }));
+            }}
+            className="rounded-lg border border-orange-300 bg-orange-50 px-2 py-1 text-xs font-black text-orange-700 hover:bg-orange-100">回到主页</button>
+          <span className="hidden font-black text-stone-600 sm:inline">{restaurant.name}</span>
           <div className="flex items-center gap-1.5 bg-green-50 px-2 py-0.5 rounded-lg border border-green-100">
             <DollarSign className="w-4 h-4 text-green-600" />
             <span className="text-xl font-black text-green-700 tabular-nums">${state.money.toFixed(1)}</span>
@@ -740,9 +839,9 @@ const App: React.FC = () => {
           <div className="supply-headings">
             <h2><ShoppingCart />进货</h2><h2><Package />仓库</h2>
           </div>
-          <div className="supply-shelves">
-            {(Object.keys(INGREDIENTS) as IngredientId[]).sort((a, b) => INGREDIENTS[a].price - INGREDIENTS[b].price).map(id => {
-              const ing = INGREDIENTS[id];
+          <div className="supply-shelves" style={{ '--ingredient-count': Object.keys(ingredients).length } as React.CSSProperties}>
+            {(Object.keys(ingredients) as IngredientId[]).sort((a, b) => ingredients[a]!.price - ingredients[b]!.price).map(id => {
+              const ing = ingredients[id]!;
               const pending = state.pendingDeliveries.filter(d => d.ingredientId === id);
               const isFull = state.inventory[id] + pending.length >= 10;
               const cannotBuy = state.money < ing.price || isFull || state.isPaused;
@@ -750,7 +849,7 @@ const App: React.FC = () => {
                 <button className="supply-buy" type="button" onClick={() => buyIngredient(id)} disabled={cannotBuy}
                   aria-label={`购买${ing.name}，${ing.price}金币`}
                   title={isFull ? '库存已满（含配送中）' : `${ing.name} · 配送 ${ing.deliveryTime} 秒`}>
-                  <span className="supply-icon" aria-hidden="true">{ing.icon}</span>
+                  <span className="supply-icon" aria-hidden="true"><IngredientArtwork ingredient={ing} /></span>
                   <span className="supply-label"><strong>{ing.name}</strong><b>${ing.price}</b></span>
                   <DeliveryClock deliveries={pending} duration={ing.deliveryTime} />
                   {ingredientHint.ids.includes(id) && <span key={ingredientHint.sequence}
@@ -800,24 +899,58 @@ const App: React.FC = () => {
             </div>
             <div className="recipe-grid">
               {sortedRecipes.map(recipe => (
-                <RecipeCard key={recipe.id} recipe={recipe} inventory={state.inventory}
+                <RecipeCard key={recipe.id} recipe={recipe} inventory={state.inventory} ingredientCatalog={ingredients}
                   hasOrder={state.activeOrders.some(order => order.dishId === recipe.id)}
-                  paused={state.isPaused} onCook={() => startCooking(recipe)}
+                  paused={state.isPaused} stationAvailable={hasAvailableStation(recipe)}
+                  stationName={restaurant.stationTypes.find(type => type.id === recipe.requiredStationType)?.equipmentLabel}
+                  requiredStationName={recipe.requiredStationType ? restaurant.stationTypes.find(type => type.id === recipe.requiredStationType)?.equipmentLabel : undefined}
+                  onCook={() => startCooking(recipe)}
                   onInspect={() => highlightMissingIngredients(recipe)} />
               ))}
             </div>
           </section>
 
           {/* Cooking Section */}
-          <section className="stove-section flex flex-col p-1">
-            <div className="flex-1 flex gap-1">
+          <section className={`stove-section flex flex-col p-1 ${restaurant.cookwareTypes.length > 0 ? 'has-cookware' : ''}`}>
+            {restaurant.cookwareTypes.length > 0 && (
+              <div className="cookware-purchase-rack" aria-label="锅具仓库"
+                onDragOver={event => {
+                  if (!state.isPaused && event.dataTransfer.types.includes('application/x-kitchen-stove-cookware')) event.preventDefault();
+                }}
+                onDrop={event => {
+                  const sourceId = event.dataTransfer.getData('application/x-kitchen-stove-cookware');
+                  if (!sourceId || state.isPaused) return;
+                  event.preventDefault();
+                  removeCookware(Number(sourceId));
+                }}>
+                {restaurant.cookwareTypes.map(cookware => {
+                  const count = state.cookwareInventory[cookware.id] ?? 0;
+                  return <button key={cookware.id} type="button" className="cookware-rack-item"
+                    onClick={() => placeFirstAvailableCookware(cookware.id)} disabled={state.isPaused || count < 1}
+                    draggable={!state.isPaused && count > 0}
+                    onDragStart={event => { event.dataTransfer.setData('application/x-kitchen-cookware', cookware.id); event.dataTransfer.effectAllowed = 'move'; }}
+                    aria-label={`放置${cookware.name}，库存${count}个；拖到空灶台可指定位置`}
+                    title={`${cookware.name} · 库存 ${count} · 点击放到首个空灶台，或拖动到指定空灶台`}>
+                    <img src={cookware.visualAsset} alt="" aria-hidden="true" />
+                    <span className="cookware-rack-name">{cookware.name}</span>
+                    <span className="cookware-rack-count">×{count}</span>
+                  </button>;
+                })}
+                <button type="button" className="cookware-add-button" onClick={() => setShowCookwareShop(true)} disabled={state.isPaused} aria-label="购买锅具" title="购买锅具">+</button>
+              </div>
+            )}
+            <div className="station-slots flex-1 flex gap-1">
               {state.stoves.map(stove => {
-                const activeRecipe = RECIPES.find(r => r.id === stove.dishId);
+                const activeRecipe = recipes.find(r => r.id === stove.dishId);
+                const cookware = restaurant.cookwareTypes.find(type => type.id === stove.cookwareId);
                 const isInstalling = stove.installTimeLeft > 0;
-                const canInstall = !stove.isInstalled && !isInstalling && state.money >= STOVE_INSTALL_COST;
                 
                 return (
-                  <div key={stove.id} className={`flex-1 relative px-1 py-1 rounded-lg border flex items-center shadow-inner group overflow-hidden transition-all ${
+                  <div key={stove.id} onDragOver={event => { if (stove.isInstalled && !stove.isCooking && !stove.isDone && !stove.cookwareId && !state.isPaused) event.preventDefault(); }}
+                    onDrop={event => { event.preventDefault(); const id = event.dataTransfer.getData('application/x-kitchen-cookware'); if (id) placeCookware(stove.id, id); }}
+                    className={`flex-1 relative px-1 py-1 rounded-lg border flex items-center shadow-inner group overflow-hidden transition-all ${
+                    stove.isInstalled && !stove.isCooking && !stove.isDone && !stove.cookwareId ? 'station-slot-drop-target' : ''
+                  } ${
                     !stove.isInstalled 
                       ? 'bg-stone-100 border-dashed border-stone-300' 
                       : 'bg-stone-50/50 border-stone-100'
@@ -833,32 +966,33 @@ const App: React.FC = () => {
                             <span className="stove-status font-black text-orange-500">{stove.installTimeLeft}s</span>
                           </div>
                           <div className="w-full bg-stone-200 h-1 rounded-full overflow-hidden">
-                            <div className="bg-gradient-to-r from-orange-400 to-red-500 h-full transition-all" style={{ width: `${((STOVE_INSTALL_TIME - stove.installTimeLeft) / STOVE_INSTALL_TIME) * 100}%` }} />
+                            <div className="bg-gradient-to-r from-orange-400 to-red-500 h-full transition-all" style={{ width: `${((restaurant.stoveInstallTime - stove.installTimeLeft) / restaurant.stoveInstallTime) * 100}%` }} />
                           </div>
                         </div>
                       ) : (
                         // 未安装 - 三行文字均匀居中
                         <button 
-                          onClick={() => installStove(stove.id)}
-                          disabled={state.isPaused || state.money < STOVE_INSTALL_COST}
+                          onClick={() => buildStove(stove.id)}
+                          disabled={state.isPaused || state.money < restaurant.stoveInstallCost}
                           className={`w-full h-full flex flex-col items-center justify-center gap-1 transition-all ${
-                            state.money >= STOVE_INSTALL_COST && !state.isPaused
+                            state.money >= restaurant.stoveInstallCost && !state.isPaused
                               ? 'cursor-pointer hover:bg-orange-50 active:scale-95' 
                               : 'opacity-50 cursor-not-allowed'
                           }`}
                         >
-                          <span className="stove-label font-bold text-stone-400 uppercase">安装灶台</span>
-                          <span className={`stove-label font-black ${state.money >= STOVE_INSTALL_COST ? 'text-green-600' : 'text-red-500'}`}>
-                            ${STOVE_INSTALL_COST}
+                          <span className="stove-label font-bold text-stone-400 uppercase">{restaurant.cookwareTypes.length > 0 ? '建造灶台' : '安装灶台'}</span>
+                          <span className={`stove-label font-black ${state.money >= restaurant.stoveInstallCost ? 'text-green-600' : 'text-red-500'}`}>
+                            ${restaurant.stoveInstallCost}
                           </span>
-                          <span className="stove-status text-stone-400 font-medium">⏱{STOVE_INSTALL_TIME}秒</span>
+                          <span className="stove-status text-stone-400 font-medium">⏱{restaurant.stoveInstallTime}秒</span>
                         </button>
                       )
                     ) : stove.isCooking ? (
                       // 烹饪中 - 四行布局：图标、菜名、时间条、取消按钮
                       <div className="w-full flex flex-col items-center justify-center gap-0.5 animate-in slide-in-from-bottom-1 duration-200 h-full py-0.5">
+                        {cookware && <CookwareArtwork cookware={cookware} compact />}
                         {/* 第一排：菜品图标 */}
-                        <div className="text-xl shrink-0">{activeRecipe?.icon}</div>
+                        <div className="text-xl shrink-0">{activeRecipe && <DishArtwork icon={activeRecipe.icon} image={activeRecipe.image} />}</div>
                         {/* 第二排：菜名 */}
                         <span className="stove-label font-black text-stone-700">{activeRecipe?.name}</span>
                         {/* 第三排：进度条和倒计时 */}
@@ -876,9 +1010,10 @@ const App: React.FC = () => {
                     ) : stove.isDone ? (
                       // 已做好 - 显示菜品和上菜/丢弃按钮
                       <div className="w-full flex flex-col items-center justify-center gap-0.5 h-full py-0.5">
+                        {cookware && <CookwareArtwork cookware={cookware} compact />}
                         {/* 菜品图标 */}
                         <div className="text-xl shrink-0 relative">
-                          {activeRecipe?.icon}
+                          {activeRecipe && <DishArtwork icon={activeRecipe.icon} image={activeRecipe.image} />}
                           <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
                             <span className="text-[8px]">✓</span>
                           </div>
@@ -892,9 +1027,27 @@ const App: React.FC = () => {
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
+                    ) : cookware ? (
+                      <div className="station-equipped-view" draggable={!state.isPaused}
+                        onDragStart={event => {
+                          event.dataTransfer.setData('application/x-kitchen-stove-cookware', String(stove.id));
+                          event.dataTransfer.effectAllowed = 'move';
+                        }}
+                        title={`${cookware.name} · 拖到上方锅具仓库可撤下`}>
+                        <CookwareArtwork cookware={cookware} />
+                        <button type="button" className="station-remove-cookware" disabled={state.isPaused}
+                          onClick={() => removeCookware(stove.id)} title={`撤下${cookware.name}`}>
+                          <RotateCcw aria-hidden="true" /><span>撤下</span>
+                        </button>
+                      </div>
+                    ) : restaurant.cookwareTypes.length > 0 ? (
+                      <div className="station-empty-view">
+                        <img className="empty-station-art" src={restaurant.emptyStationVisualAsset} alt="空灶台" />
+                        <span className="station-buy-hint">从上方锅具仓库点击或拖入</span>
+                      </div>
                     ) : (
-                      // 空闲灶台
-                      <div className="w-full text-center opacity-15 text-[17px] font-black uppercase tracking-widest flex items-center justify-center gap-1"><Flame className="w-3 h-3" /> 灶台</div>
+                      // 西餐厅保留原有灶台显示
+                      <div className="w-full text-center opacity-15 text-[17px] font-black uppercase tracking-widest flex items-center justify-center gap-1"><Flame className="w-3 h-3" />灶台</div>
                     )}
                   </div>
                 );
@@ -911,7 +1064,7 @@ const App: React.FC = () => {
           </div>
             <div className="order-list">
               {state.activeOrders.map(order => {
-                const recipe = RECIPES.find(r => r.id === order.dishId)!;
+                const recipe = recipes.find(r => r.id === order.dishId)!;
                 // 最后20秒是催单区间
                 const isUrgent = order.expiryTime <= 20;
                 // 最左边20秒轻微区分 (expiryTime > 60)
@@ -922,7 +1075,8 @@ const App: React.FC = () => {
                 const maxTime = 80; // 统一80秒
                 const progressWidth = (displayTime / maxTime) * 100;
                 const canCook = Object.entries(recipe.ingredients).every(([ingId, count]) => state.inventory[ingId as IngredientId] >= (count || 0));
-                const hasFreeStove = state.stoves.some(s => s.isInstalled && !s.isCooking && !s.isDone);
+                const hasFreeStove = hasAvailableStation(recipe);
+                const requiredStationName = restaurant.stationTypes.find(type => type.id === recipe.requiredStationType)?.name;
                 const canAttemptCooking = !state.isPaused && !isCooking && (!canCook || hasFreeStove);
                 // 检查灶台上是否有对应的已做好的菜品
                 const hasReadyDish = state.stoves.some(s => s.isDone && s.dishId === order.dishId);
@@ -932,7 +1086,7 @@ const App: React.FC = () => {
                     <div className="flex items-center gap-1 mb-1">
                       <button type="button" className="order-dish" disabled={state.isPaused}
                         onClick={() => highlightMissingIngredients(recipe)} aria-label={`${recipe.name}：检查缺少的食材`}>
-                        <div className="text-2xl shrink-0"><DishArtwork icon={recipe.icon} /></div>
+                        <div className="text-2xl shrink-0"><DishArtwork icon={recipe.icon} image={recipe.image} /></div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1 mb-0.5">
                             <span className="font-black text-stone-800 text-[9px] leading-tight truncate">{recipe.name}</span>
@@ -957,7 +1111,7 @@ const App: React.FC = () => {
                       ) : (
                         <CookButton hasIngredients={canCook} hasOrder={true} disabled={!canAttemptCooking}
                           onClick={() => acceptOrder(order)} label={isCooking ? '制作中' : '烹饪'}
-                          title={state.isPaused ? '游戏已暂停' : isCooking ? '正在制作' : !canCook ? '食材不足，点击查看缺少的食材' : !hasFreeStove ? '没有可用的灶台' : '接受订单并烹饪'} />
+                          title={state.isPaused ? '游戏已暂停' : isCooking ? '正在制作' : !canCook ? '食材不足，点击查看缺少的食材' : !hasFreeStove ? `没有可用的${requiredStationName ?? '灶台'}` : '接受订单并烹饪'} />
                       )}
                     </div>
                     <div className="w-full bg-stone-100 h-1 rounded-full overflow-hidden"><div className={`h-full transition-all duration-1000 ease-linear ${isUrgent ? 'bg-red-600 animate-pulse' : isNew ? 'bg-blue-400' : 'bg-orange-400'}`} style={{ width: `${progressWidth}%` }} /></div>
@@ -969,9 +1123,49 @@ const App: React.FC = () => {
       </main>
 
       {/* Center Popup Notifications */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm" role="presentation">
+          <section className="w-full max-w-md rounded-3xl border-4 border-orange-200 bg-white p-6 text-center shadow-2xl" role="alertdialog" aria-modal="true" aria-labelledby="exit-confirm-title" aria-describedby="exit-confirm-description">
+            <h2 id="exit-confirm-title" className="text-xl font-black text-stone-800">确认回到主页？</h2>
+            <p id="exit-confirm-description" className="mt-3 text-sm font-bold leading-relaxed text-stone-600">当前这局的游戏进度不会保存。确定后将结束本局并返回餐厅选择页面。</p>
+            <div className="mt-6 flex justify-center gap-3">
+              <button type="button" autoFocus onClick={() => {
+                  setShowExitConfirm(false);
+                  setState(prev => ({ ...prev, isPaused: wasPausedBeforeExitConfirm.current }));
+                }} className="rounded-xl bg-stone-200 px-5 py-2.5 font-black text-stone-700 hover:bg-stone-300">继续游戏</button>
+              <button type="button" onClick={() => {
+                  setShowExitConfirm(false);
+                  setState(prev => ({ ...prev, gameStatus: 'idle', isPaused: true }));
+                  setShowHomepage(true);
+                }} className="rounded-xl bg-orange-600 px-5 py-2.5 font-black text-white hover:bg-orange-700">确认返回主页</button>
+            </div>
+          </section>
+        </div>
+      )}
+
       {notification && (
         <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-4 rounded-3xl shadow-xl flex flex-col items-center gap-2 animate-in zoom-in fade-in duration-300 z-[200] border-4 backdrop-blur-md ${notification.type === 'success' ? 'bg-green-600/90 border-green-200 text-white' : notification.type === 'error' ? 'bg-red-700/90 border-red-300 text-white' : 'bg-stone-900/90 border-stone-600 text-white'}`}>
           <span className="font-black text-lg text-center leading-tight tracking-tight drop-shadow">{notification.msg}</span>
+        </div>
+      )}
+
+      {showCookwareShop && restaurant.cookwareTypes.length > 0 && (
+        <div className="cookware-shop-overlay" onClick={() => setShowCookwareShop(false)}>
+          <section className="cookware-shop-dialog" role="dialog" aria-modal="true" aria-labelledby="cookware-shop-title" onClick={event => event.stopPropagation()}>
+            <header><h2 id="cookware-shop-title">购买锅具</h2><button type="button" onClick={() => setShowCookwareShop(false)} aria-label="关闭">×</button></header>
+            <div className="cookware-shop-grid">
+              {restaurant.cookwareTypes.map(cookware => (
+                <article className="cookware-shop-card" key={cookware.id}>
+                  <CookwareArtwork cookware={cookware} />
+                  <h3>{cookware.name}</h3><p>{cookware.description}</p>
+                  <button type="button" disabled={state.isPaused || state.money < cookware.price}
+                    onClick={() => { if (buyCookware(cookware.id)) setShowCookwareShop(false); }}>
+                    购买 · ${cookware.price}
+                  </button>
+                </article>
+              ))}
+            </div>
+          </section>
         </div>
       )}
 
@@ -1053,8 +1247,8 @@ const App: React.FC = () => {
                 <ul className="space-y-2 text-base">
                   <li>• <strong>初始灶台：</strong>游戏开始时拥有2个灶台</li>
                   <li>• <strong>最大灶台：</strong>最多可扩展至4个灶台</li>
-                  <li>• <strong>安装费用：</strong>安装一个新灶台需要${STOVE_INSTALL_COST}金币</li>
-                  <li>• <strong>安装时间：</strong>安装新灶台需要${STOVE_INSTALL_TIME}秒</li>
+                  <li>• <strong>安装费用：</strong>安装一个新灶台需要${restaurant.stoveInstallCost}金币</li>
+                  <li>• <strong>安装时间：</strong>安装新灶台需要${restaurant.stoveInstallTime}秒</li>
                   <li>• <strong>点击+号：</strong>点击空置灶台位置可以安装新灶台</li>
                 </ul>
               </section>
@@ -1064,6 +1258,7 @@ const App: React.FC = () => {
                 <ul className="space-y-2 text-base">
                   <li>• <strong>点击菜谱卡片：</strong>翻面查看食材和时间；点击烹饪按钮开始制作</li>
                   <li>• <strong>食材需求：</strong>必须拥有足够的食材才能开始烹饪</li>
+                  {restaurant.cookwareTypes.length > 0 && <li>• <strong>锅具：</strong>灶台建造与锅具购买分开计费；点锅具仓库里的锅可放到第一个空灶台，也可拖到指定空灶台；没有空灶台时不会放置。点最右侧加号购买炒锅、煮锅或高压锅。菜品只能用对应类型的锅具制作；高压锅可当煮锅使用，煮类菜烹饪时间减半。</li>}
                   <li>• <strong>烹饪时间：</strong>不同菜品需要不同的烹饪时间（秒）</li>
                   <li>• <strong>灶台数量：</strong>同时最多在已安装的灶台上烹饪</li>
                   <li>• <strong>取消烹饪：</strong>可以点击X按钮取消，但食材会损耗</li>

@@ -1,16 +1,29 @@
 import React, { useState } from 'react';
 import { ChefHat, Clock, Plus } from 'lucide-react';
-import { INGREDIENTS } from './constants';
-import { Ingredient, IngredientId, PendingDelivery, Recipe } from './types';
+import { CookwareType, Ingredient, IngredientId, PendingDelivery, Recipe } from './types';
 
 // Presentation only: both cooking entry points share the same four color states.
 export const cookingTone = (hasIngredients: boolean, hasOrder: boolean) =>
   hasOrder ? (hasIngredients ? 'ordered' : 'ordered-missing') : (hasIngredients ? 'ready' : 'missing');
 
-export function DishArtwork({ icon }: { icon: string }) {
+export function DishArtwork({ icon, image }: { icon: string; image?: string }) {
+  if (image) return <span className="dish-artwork dish-artwork-image" aria-hidden="true"><img src={image} alt="" /></span>;
   const [main, ...extras] = Array.from(icon);
   return <span className="dish-artwork" aria-hidden="true"><span>{main}</span>
     {extras.length > 0 && <span className="dish-garnish">{extras.join('')}</span>}
+  </span>;
+}
+
+export function IngredientArtwork({ ingredient }: { ingredient: Ingredient }) {
+  return ingredient.image
+    ? <img className="ingredient-artwork" src={ingredient.image} alt="" />
+    : <span className="ingredient-artwork" aria-hidden="true">{ingredient.icon}</span>;
+}
+
+export function CookwareArtwork({ cookware, compact = false }: { cookware: CookwareType; compact?: boolean }) {
+  return <span className={`station-cookware-art ${compact ? 'is-compact' : ''}`} role="img" aria-label={cookware.name} title={cookware.name} tabIndex={0}>
+    <img src={cookware.visualAsset} alt="" />
+    <span className="cookware-hover-name">{cookware.name}</span>
   </span>;
 }
 
@@ -58,15 +71,16 @@ export function StockShelf({ ingredient, count, disabled, onSell }: {
       {Array.from({ length: 5 }, (_, slot) => {
         const quantity = slot < 4 ? Number(count > slot) : Math.max(0, count - 4);
         return <span key={slot} className={`stock-slot ${quantity > 1 ? 'stock-stack' : ''}`}>
-          {Array.from({ length: quantity }, (_, index) => <span key={index} className="stock-item">{ingredient.icon}</span>)}
+          {Array.from({ length: quantity }, (_, index) => <span key={index} className="stock-item"><IngredientArtwork ingredient={ingredient} /></span>)}
         </span>;
       })}
     </span>
   </button>;
 }
 
-export function RecipeCard({ recipe, inventory, hasOrder, paused, onCook, onInspect }: {
-  recipe: Recipe; inventory: Record<IngredientId, number>; hasOrder: boolean; paused: boolean; onCook: () => void; onInspect: () => void;
+export function RecipeCard({ recipe, inventory, ingredientCatalog, hasOrder, paused, stationAvailable, stationName, requiredStationName, onCook, onInspect }: {
+  recipe: Recipe; inventory: Record<IngredientId, number>; ingredientCatalog: Partial<Record<IngredientId, Ingredient>>; hasOrder: boolean; paused: boolean;
+  stationAvailable: boolean; stationName?: string; requiredStationName?: string; onCook: () => void; onInspect: () => void;
 }) {
   const [flipped, setFlipped] = useState(false);
   const enough = Object.entries(recipe.ingredients).every(([id, count]) => inventory[id as IngredientId] >= (count || 0));
@@ -79,7 +93,7 @@ export function RecipeCard({ recipe, inventory, hasOrder, paused, onCook, onInsp
       title="点击翻面" disabled={paused}>
       <span className="recipe-turn">
         <span className="recipe-face recipe-front" aria-hidden={flipped}>
-          <span className="dish-picture"><DishArtwork icon={recipe.icon} /></span>
+          <span className="dish-picture"><DishArtwork icon={recipe.icon} image={recipe.image} /></span>
           <span className="dish-name">{recipe.name}</span>
           <span className="dish-price">${recipe.salePrice}</span>
         </span>
@@ -87,15 +101,19 @@ export function RecipeCard({ recipe, inventory, hasOrder, paused, onCook, onInsp
           <span className="recipe-ingredients">
             {Object.entries(recipe.ingredients).map(([id, count]) => <span key={id}
               className={`recipe-ingredient ${inventory[id as IngredientId] < (count || 0) ? 'ingredient-missing' : ''}`}
-              title={`${INGREDIENTS[id as IngredientId].name} ×${count}`}>
-              <span>{INGREDIENTS[id as IngredientId].icon}</span><small>×{count}</small>
+              title={`${ingredientCatalog[id as IngredientId]?.name ?? id} ×${count}`}>
+              {ingredientCatalog[id as IngredientId]
+                ? <IngredientArtwork ingredient={ingredientCatalog[id as IngredientId]!} />
+                : <span>❔</span>}
+              <small>×{count}</small>
             </span>)}
           </span>
           <span className="recipe-time"><Clock aria-hidden="true" />{recipe.cookingTime}秒</span>
+          {requiredStationName && <span className="recipe-station">设备：{requiredStationName}</span>}
         </span>
       </span>
     </button>
-    <CookButton hasIngredients={enough} hasOrder={hasOrder} disabled={paused}
-      onClick={onCook} title={paused ? '游戏已暂停' : !enough ? '食材不足，点击查看缺少的食材' : hasOrder ? '有订单需要这道菜' : '开始烹饪'} />
+    <CookButton hasIngredients={enough} hasOrder={hasOrder} disabled={paused || !stationAvailable}
+      onClick={onCook} title={paused ? '游戏已暂停' : !enough ? '食材不足，点击查看缺少的食材' : !stationAvailable ? `没有可用的${stationName ?? '灶台'}` : hasOrder ? '有订单需要这道菜' : '开始烹饪'} />
   </article>;
 }

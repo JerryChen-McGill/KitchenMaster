@@ -69,6 +69,6 @@ export const RECIPES: Recipe[] = [
   }
 ];
 
-export const getRecipeProfit = (recipe: Recipe): number => recipe.salePrice -
+export const getRecipeProfit = (recipe: Recipe, ingredients: Partial<Record<IngredientId, Ingredient>> = INGREDIENTS): number => recipe.salePrice -
   Object.entries(recipe.ingredients).reduce((cost, [id, count]) =>
-    cost + INGREDIENTS[id as IngredientId].price * (count ?? 0), 0);
+    cost + (ingredients[id as IngredientId]?.price ?? 0) * (count ?? 0), 0);
